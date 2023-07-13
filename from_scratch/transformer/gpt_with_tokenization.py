@@ -1,41 +1,44 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from nltk import word_tokenize
 from tqdm import tqdm
 
 # hyperparameters
-batch_size = 64 # how many independent sequences will we process in parallel?
-block_size = 256 # what is the maximum context length for predictions?
+batch_size = 32 # how many independent sequences will we process in parallel?
+block_size = 128 # what is the maximum context length for predictions?
 max_iters = 2000
 eval_interval = 500
 learning_rate = 3e-4
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-eval_iters = 200
-n_embd = 512
+eval_iters = 150
+n_embd = 256
 n_head = 16
-n_layer = 8
-dropout = 0.3
+n_layer = 20
+dropout = 0.2
+
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f'Using {device} for training')
+
+file_path = '../data/input.txt'
 # ------------
 
 torch.manual_seed(1337)
-print(f'Using {device} for training')
 
-# wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
-with open('../data/input.txt', 'r', encoding='utf-8') as f:
+with open(file_path, 'r', encoding='utf-8') as f:
     text = f.read()
 
-# here are all the unique characters that occur in this text
-chars = sorted(list(set(text)))
-vocab_size = len(chars)
-# create a mapping from characters to integers
-stoi = { ch:i for i,ch in enumerate(chars) }
-itos = { i:ch for i,ch in enumerate(chars) }
-encode = lambda s: [stoi[c] for c in s] # encoder: take a string, output a list of integers
-decode = lambda l: ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
+# here are all the unique words that occur in this text
+words = sorted(list(set(word_tokenize(text))))
+vocab_size = len(words)
+# create a mapping from words to integers
+stoi = { w:i for i, w in enumerate(words) }
+itos = { i:w for i, w in enumerate(words) }
+encode = lambda s: [stoi[c] for c in s] # encoder: take a list of words, output a list of integers
+decode = lambda l: ' '.join([itos[i] for i in l]) # decoder: take a list of integers, output a words list
 
 # Train and test splits
-data = torch.tensor(encode(text), dtype=torch.long)
-n = int(0.9*len(data)) # first 90% will be train, rest val
+data = torch.tensor(encode(word_tokenize(text)), dtype=torch.long)
+n = int(0.9 * len(data)) # first 90% will be train, rest val
 train_data = data[:n]
 val_data = data[n:]
 
@@ -57,7 +60,7 @@ def estimate_loss():
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
             X, Y = get_batch(split)
-            logits, loss = model(X, Y)
+            _, loss = model(X, Y)
             losses[k] = loss.item()
         out[split] = losses.mean()
     model.train()
@@ -225,11 +228,13 @@ for iter in tqdm(range(max_iters)):
 
 # generate from the model
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
-print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
-#open('more.txt', 'w').write(decode(m.generate(context, max_new_tokens=10000)[0].tolist()))
+print(decode(m.generate(context, max_new_tokens=100)[0].tolist()))
+# open('../output/generation.txt', 'w').write(decode(m.generate(context, max_new_tokens=100)[0].tolist()))
+# print("The generation text saved successfully.")
 
 # Save the model
 model_size_str = str(int(params/1e6))
-model_file_name = 'transformer' + model_size_str + 'M.pth'
+model_file_name = 'word_transformer' + model_size_str + 'M.pth'
 model_save_path = '../params/transformer/' + model_file_name
 torch.save(model.state_dict(), model_save_path)
+print("The model saved successfully.")
