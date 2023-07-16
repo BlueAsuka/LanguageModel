@@ -9,8 +9,8 @@ import math
 from datetime import date
 
 # hyperparameters
-batch_size = 32 # how many independent sequences will we process in parallel?
-block_size = 128 # what is the maximum context length for predictions?
+batch_size = 16 # how many independent sequences will we process in parallel?
+block_size = 64 # what is the maximum context length for predictions?
 n_embd = 384
 n_head = 32
 n_layer = 32
